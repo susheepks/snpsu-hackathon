@@ -1,95 +1,167 @@
-# VoiceAI — AI Agent Mission Control
+# VoiceOps — AI Agent Mission Control
 
-A hackathon-ready **voice agent dashboard** with:
-- 🎙️ **Voice input** (Web Speech API + mic visualizer)
-- 📡 **Real-time WebSocket** streaming from FastAPI backend
-- 🧠 **Groq/llama3** intent extraction
-- 🌐 **Playwright** browser automation
-- 🎨 **Glassmorphism** dark-mode UI
+> **Hackathon 2026** · Speak a command → Watch the agent think, browse the web, and complete real tasks — all streamed live.
 
 ---
 
-## Quick Start
+## 🏗️ Tech Stack
 
-### Frontend
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 16 · TypeScript · Framer Motion · Clerk Auth |
+| **AI / NLU** | Groq API · Llama-3.3-70B-Versatile |
+| **Speech-to-Text** | OpenAI Whisper (local, CPU) via `transcribe_local` |
+| **Text-to-Speech** | Browser Web Speech API (SpeechSynthesis) |
+| **Browser Automation** | Playwright (Chromium, persistent context) |
+| **Backend** | FastAPI · Uvicorn · Python 3.12 |
+| **Real-time Comms** | WebSocket (`/ws`) with auto-reconnect |
+| **Auth** | Clerk (Next.js middleware, per-user data) |
+| **Styling** | Vanilla CSS · Glassmorphism · Dark/Light mode |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Frontend
+
 ```bash
 cd frontend
-cp .env.example .env.local      # set NEXT_PUBLIC_WS_URL
+cp .env.example .env.local       # Fill in your keys (see below)
 npm install
-npm run dev                      # → http://localhost:3000
+npm run dev                       # → http://localhost:3000
 ```
 
-### Backend
+**Required `.env.local` keys:**
+```env
+NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+```
+
+### 2. Backend (Linux / WSL)
+
 ```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate            # Windows
-pip install -r requirements.txt
+cd ~
+python3 -m venv venv
+source venv/bin/activate
+pip install fastapi uvicorn groq playwright pygame edge-tts
 playwright install chromium
-cp .env.example .env             # set GROQ_API_KEY
-uvicorn main:app --reload        # → ws://localhost:8000/ws
+
+python3 -m uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
 ---
 
-## Architecture
+## 📁 Project Structure
 
 ```
-frontend/           Next.js 14 + Tailwind + Framer Motion
-  src/
-    app/
-      page.tsx         ← Main Mission Control page
-      globals.css      ← Design tokens + animations
-    components/
-      MissionHistory   ← Left sidebar: session log
-      LiveFeed         ← Real-time [HEARD/THINK/ACTION/RESULT] log
-      ActionCanvas     ← Center: Playwright browser view
-      SystemBrain      ← Right sidebar: intent + entities + confidence
-      VoiceCommandBar  ← Bottom: mic input + voice visualizer
-      TaskMonitor      ← Right sidebar: active tasks
-    hooks/
-      useAgentWS       ← WebSocket hook with auto-reconnect
-    lib/
-      types.ts         ← Shared TypeScript types
-
-backend/            FastAPI + Groq + Playwright
-  main.py              ← App entrypoint
-  api/
-    websocket.py       ← WS /ws endpoint
-    routes.py          ← REST /api/* endpoints
-  agent/
-    architect_agent.py ← Core pipeline (NLU → Execute → Stream)
-    groq_client.py     ← Groq/LLM intent extraction
-    browser_executor.py← Playwright browser automation
-  requirements.txt
-  .env.example
+hackathon/
+├── server.py                 ← FastAPI entrypoint (WebSocket + REST)
+├── agent3.py                 ← JarvisAgent class (Playwright + Groq)
+├── transcribe_local.py       ← Whisper STT (local CPU inference)
+│
+└── frontend/                 Next.js App
+    └── src/
+        ├── app/
+        │   ├── page.tsx          ← Landing page
+        │   ├── layout.tsx        ← Root layout + Clerk provider
+        │   ├── loading.tsx       ← Global loading screen
+        │   ├── globals.css       ← Design tokens, glass UI, animations
+        │   ├── dashboard/
+        │   │   └── page.tsx      ← Mission Control (main live dashboard)
+        │   ├── missions/
+        │   │   └── page.tsx      ← Per-user Mission History (localStorage)
+        │   └── settings/
+        │       └── page.tsx      ← Agent config, voice, browser, UI prefs
+        │
+        ├── components/
+        │   ├── layout/
+        │   │   ├── AppShell.tsx  ← Sidebar + TopBar wrapper
+        │   │   ├── Sidebar.tsx   ← Navigation sidebar
+        │   │   └── TopBar.tsx    ← Header with notifications + auth
+        │   ├── LiveFeed.tsx      ← Real-time HEARD/THINK/ACTION/RESULT log
+        │   ├── ActionCanvas.tsx  ← Playwright browser stream panel
+        │   ├── VoiceCommandBar.tsx ← Mic input + waveform visualizer
+        │   ├── MissionHistory.tsx  ← Session mission sidebar
+        │   ├── SystemBrain.tsx   ← Intent + entities + confidence panel
+        │   └── TaskMonitor.tsx   ← Active task tracker
+        │
+        └── hooks/
+            └── useAgentWS.ts     ← WebSocket hook (auto-reconnect + ping)
 ```
 
 ---
 
-## WebSocket Protocol
+## 🔌 WebSocket Protocol
 
 ```
-Frontend → Backend:
+Client → Server:
   { "type": "command",  "text": "<user utterance>" }
   { "type": "ping" }
 
-Backend → Frontend:
+Server → Client (streamed in order):
   { "type": "heard",      "text": "..." }
-  { "type": "think",      "intent": "book_room", "confidence": 0.94, "entities": {...}, "latency_ms": 312 }
+  { "type": "think",      "intent": "info|action|general",
+                          "confidence": 0.9,
+                          "entities": { ... },
+                          "latency_ms": 312,
+                          "reply": "Short spoken response" }
   { "type": "action",     "url": "https://..." }
   { "type": "screenshot", "data": "<base64 PNG>" }
-  { "type": "result",     "text": "Done!" }
-  { "type": "error",      "text": "..." }
-  { "type": "clarify",    "text": "Please be more specific" }
+  { "type": "result",     "text": "Final answer text" }
+  { "type": "error",      "text": "Error description" }
+  { "type": "clarify",    "text": "Need more details..." }
   { "type": "pong" }
 ```
 
 ---
 
-## Adding Your Backend
+## 🧠 Agent Pipeline
 
-1. Open `backend/agent/architect_agent.py`
-2. Replace `_stub_nlu()` with a real call to `groq_client.extract_intent()`
-3. Uncomment the Playwright blocks in `browser_executor.py`
-4. Set `GROQ_API_KEY` in `.env`
+```
+User Speaks
+    │
+    ▼
+VoiceCommandBar  (Web Speech API / mic stream)
+    │
+    ▼
+WebSocket /ws  →  FastAPI server.py
+    │
+    ▼
+Groq LLM  (llama-3.3-70b-versatile)
+  → Extracts: intent, confidence, entities, reply, query/service
+    │
+    ├── intent = "info"    → Google Search + Playwright screenshot
+    │                       → get_google_summary() → result
+    │
+    ├── intent = "action"  → Navigate to service URL + Playwright
+    │                       → result
+    │
+    └── intent = "general" → Direct LLM reply → result
+    │
+    ▼
+WebSocket streams events back → Frontend renders live
+    │
+    ▼
+Mission saved to localStorage (per Clerk user)
+```
+
+---
+
+## 🗂️ Key Features
+
+- **🎙️ Voice Input** — Speak naturally or type in the command bar. Browser microphone with waveform visualizer.
+- **🧠 Live Agent Feed** — Real-time HEARD → THINK → ACTION → RESULT streaming over WebSocket.
+- **🌐 Browser Automation** — Playwright Chromium navigates the web and streams screenshots back.
+- **📋 Mission History** — Every completed command is persisted per Clerk user in `localStorage`.
+- **🔔 Notifications** — TopBar notification bell with agent system alerts.
+- **⚙️ Settings** — Agent model config, voice preferences, browser settings, dark/light theme toggle.
+- **🔐 Auth** — Clerk-powered authentication. User data is scoped per account.
+- **💾 Session Persistence** — Live feed logs, agent URL, and screenshots survive page refresh.
+
+---
+
+## 👥 Team
+
+Built at **Hackathon 2026** with Next.js · FastAPI · Groq · Playwright.

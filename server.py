@@ -2,7 +2,34 @@ from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import shutil, time, json as json_module, base64
 from playwright.async_api import async_playwright
-from agent3 import speak, get_google_summary, client, MODEL, SYSTEM_PROMPT, json, run_transcription
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+from groq import Groq
+from transcribe_local import run_transcription
+
+API_KEY = os.getenv("GROQ_API_KEY")
+if not API_KEY:
+    raise RuntimeError("GROQ_API_KEY not set. Please add it to your .env file.")
+MODEL   = "llama-3.3-70b-versatile"
+client  = Groq(api_key=API_KEY)
+
+SYSTEM_PROMPT = """You are a voice-controlled AI agent. Parse the user's command and return ONLY valid JSON with these fields:
+- intent: one of "info", "action", "general"
+- reply: a short spoken confirmation (1 sentence)
+- query: search query if intent is info
+- service: target app/service if intent is action
+- entities: dict of key entities
+- confidence: float 0-1"""
+
+async def get_google_summary(page) -> str:
+    try:
+        results = await page.query_selector_all("div.BNeawe")
+        texts = [await r.inner_text() for r in results[:5]]
+        return " ".join(texts).strip() or "Search completed."
+    except Exception:
+        return "Search completed."
 
 app = FastAPI()
 
