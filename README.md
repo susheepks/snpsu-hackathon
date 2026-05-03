@@ -1,4 +1,4 @@
-# VoiceOps — AI Agent Mission Control
+# VoiceAI — AI Agent Mission Control
 
 A hackathon-ready **voice agent dashboard** with:
 - 🎙️ **Voice input** (Web Speech API + mic visualizer)
