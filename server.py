@@ -40,7 +40,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-state = {"context": None, "page": None}
 
 @app.get("/")
 async def health_check():
@@ -151,14 +150,29 @@ async def websocket_endpoint(websocket: WebSocket):
             pass
 
 
+state = {"context": None, "page": None, "playwright": None}
+
 @app.on_event("startup")
 async def startup():
     playwright = await async_playwright().start()
+    state["playwright"] = playwright
     is_render = os.getenv("RENDER") is not None
+    
+    args = ["--start-maximized"]
+    if is_render:
+        args = [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--no-zygote",
+            "--single-process"
+        ]
+        
     state["context"] = await playwright.chromium.launch_persistent_context(
         "./user_data",
         headless=is_render,
-        args=["--start-maximized"] if not is_render else ["--no-sandbox", "--disable-setuid-sandbox"]
+        args=args
     )
     state["page"] = state["context"].pages[0]
     print("\U0001f680 Jarvis Systems Linked to API")
