@@ -121,9 +121,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_json({"type": "result", "text": final_answer})
 
                 elif intent == "action":
-                    service    = res.get("service", "search")
-                    # Use DuckDuckGo to avoid Google's cloud IP CAPTCHAs
-                    action_url = f"https://duckduckgo.com/?q={service}+{text.replace(' ', '+')}"
+                    service = res.get("service", "search").lower()
+                    query = text.replace(' ', '+')
+                    
+                    # Smart URL router to avoid search engine CAPTCHAs
+                    if "youtube" in service or "yt" in service:
+                        action_url = f"https://www.youtube.com/results?search_query={query}"
+                    elif "wiki" in service:
+                        action_url = f"https://en.wikipedia.org/w/index.php?search={query}"
+                    elif "github" in service:
+                        action_url = f"https://github.com/search?q={query}"
+                    elif "reddit" in service:
+                        action_url = f"https://old.reddit.com/search?q={query}"
+                    else:
+                        # Fallback to Wikipedia (very bot-friendly)
+                        action_url = f"https://en.wikipedia.org/w/index.php?search={query}"
+                        
                     await websocket.send_json({"type": "action", "url": action_url})
                     page = await get_page()
                     await page.goto(action_url)
