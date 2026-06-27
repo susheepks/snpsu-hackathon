@@ -154,13 +154,14 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.on_event("startup")
 async def startup():
     playwright = await async_playwright().start()
+    is_render = os.getenv("RENDER") is not None
     state["context"] = await playwright.chromium.launch_persistent_context(
         "./user_data",
-        headless=False,
-        args=["--start-maximized"]
+        headless=is_render,
+        args=["--start-maximized"] if not is_render else ["--no-sandbox", "--disable-setuid-sandbox"]
     )
     state["page"] = state["context"].pages[0]
-    print("🚀 Jarvis Systems Linked to API")
+    print("\U0001f680 Jarvis Systems Linked to API")
 
 
 @app.post("/command")
