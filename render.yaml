@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: voiceops-backend
+    env: docker
+    region: ohio
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false

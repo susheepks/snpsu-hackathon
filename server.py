@@ -106,7 +106,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
                     await websocket.send_json({"type": "action", "url": search_url})
                     page = await get_page()
-                    await page.goto(search_url, wait_until="commit")
+                    await page.goto(search_url)
                     screenshot = await page.screenshot()
                     await websocket.send_json({
                         "type": "screenshot",

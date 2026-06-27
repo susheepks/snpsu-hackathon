@@ -20,3 +20,9 @@ dist/
 # Misc
 .DS_Store
 *.log
+
+# Playwright and Windows Environments
+.venv_win/
+backend/.venv_win/
+user_data/
+test_ws.py
