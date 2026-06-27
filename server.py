@@ -42,6 +42,10 @@ app.add_middleware(
 
 state = {"context": None, "page": None}
 
+@app.get("/")
+async def health_check():
+    return {"status": "healthy", "service": "VoiceOps Backend"}
+
 
 async def get_page():
     """Auto-recover if the Playwright page has been closed."""
