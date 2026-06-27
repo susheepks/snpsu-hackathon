@@ -122,7 +122,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 elif intent == "action":
                     service    = res.get("service", "search")
-                    action_url = f"https://www.google.com/search?q={service}+{text.replace(' ', '+')}"
+                    # Use DuckDuckGo to avoid Google's cloud IP CAPTCHAs
+                    action_url = f"https://duckduckgo.com/?q={service}+{text.replace(' ', '+')}"
                     await websocket.send_json({"type": "action", "url": action_url})
                     page = await get_page()
                     await page.goto(action_url)
