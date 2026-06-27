@@ -152,30 +152,54 @@ async def websocket_endpoint(websocket: WebSocket):
 
 state = {"context": None, "page": None, "playwright": None}
 
-@app.on_event("startup")
-async def startup():
-    playwright = await async_playwright().start()
-    state["playwright"] = playwright
+async def init_browser():
+    """Initialize or re-initialize the Playwright browser."""
+    if state["playwright"] is None:
+        state["playwright"] = await async_playwright().start()
+        
     is_render = os.getenv("RENDER") is not None
-    
     args = ["--start-maximized"]
     if is_render:
         args = [
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--no-zygote",
-            "--single-process"
+            "--disable-gpu"
         ]
         
-    state["context"] = await playwright.chromium.launch_persistent_context(
+    try:
+        if state["context"]:
+            await state["context"].close()
+    except:
+        pass
+        
+    state["context"] = await state["playwright"].chromium.launch_persistent_context(
         "./user_data",
         headless=is_render,
         args=args
     )
     state["page"] = state["context"].pages[0]
     print("\U0001f680 Jarvis Systems Linked to API")
+
+@app.on_event("startup")
+async def startup():
+    await init_browser()
+
+async def get_page():
+    """Auto-recover if the Playwright page or context has been closed."""
+    try:
+        # Check if context is dead
+        if not state["context"] or not state["context"].pages:
+            raise Exception("Context dead")
+            
+        if state["page"] is None or state["page"].is_closed():
+            print("⚠️  Page closed — reopening...")
+            state["page"] = await state["context"].new_page()
+    except Exception:
+        print("⚠️  Browser crashed! Fully restarting Playwright...")
+        await init_browser()
+        
+    return state["page"]
 
 
 @app.post("/command")
